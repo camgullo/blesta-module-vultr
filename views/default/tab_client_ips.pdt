@@ -1,0 +1,50 @@
+<h4><?php $this->_('Vultr.tab_client_ips.heading_ips'); ?></h4>
+
+<div class="table-responsive">
+    <table class="table table-curved table-striped">
+        <thead>
+            <tr>
+                <th><?php $this->_('Vultr.tab_client_ips.ip_address'); ?></th>
+                <th><?php $this->_('Vultr.tab_client_ips.gateway'); ?></th>
+                <th><?php $this->_('Vultr.tab_client_ips.reverse_dns'); ?></th>
+                <th><?php $this->_('Vultr.tab_client_ips.options'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            // Merge IPv4 and IPv6 arrays for display
+            $all_ips = array_merge((isset($ipv4s) ? $ipv4s : []), (isset($ipv6s) ? $ipv6s : []));
+
+            if (!empty($all_ips)) {
+                foreach ($all_ips as $ip) {
+                    $this->Form->create();
+                    $this->Form->fieldHidden('ip_address', (isset($ip->ip) ? $ip->ip : ''));
+            ?>
+            <tr>
+                <td><?php echo (isset($ip->ip) ? $this->Html->safe($ip->ip) : ''); ?></td>
+                <td><?php echo (isset($ip->gateway) ? $this->Html->safe($ip->gateway) : 'N/A'); ?></td>
+                <td>
+                    <?php
+                    $this->Form->fieldText('reverse_dns', (isset($ip->reverse) ? $ip->reverse : ''), ['class' => 'form-control input-sm', 'placeholder' => 'e.g. mail.domain.com']);
+                    ?>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary">
+                        <i class="fas fa-save"></i> <?php $this->_('Vultr.tab_client_ips.update'); ?>
+                    </button>
+                </td>
+            </tr>
+            <?php
+                    $this->Form->end();
+                }
+            } else {
+            ?>
+            <tr>
+                <td colspan="4" class="text-center"><?php $this->_('Vultr.tab_client_ips.no_results'); ?></td>
+            </tr>
+            <?php
+            }
+            ?>
+        </tbody>
+    </table>
+</div>

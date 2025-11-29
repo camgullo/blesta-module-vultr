@@ -1,0 +1,51 @@
+<div class="title_row first">
+    <h3><?php $this->_('Vultr.tab_client_ips.heading_ips'); ?></h3>
+</div>
+
+<div class="pad">
+    <table class="table">
+        <thead>
+            <tr class="heading_row">
+                <th><?php $this->_('Vultr.tab_client_ips.ip_address'); ?></th>
+                <th><?php $this->_('Vultr.tab_client_ips.gateway'); ?></th>
+                <th><?php $this->_('Vultr.tab_client_ips.reverse_dns'); ?></th>
+                <th class="last"><?php $this->_('Vultr.tab_client_ips.options'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $all_ips = array_merge((isset($ipv4s) ? $ipv4s : []), (isset($ipv6s) ? $ipv6s : []));
+            $i = 0;
+            if (!empty($all_ips)) {
+                foreach ($all_ips as $ip) {
+                    $this->Form->create();
+                    $this->Form->fieldHidden('ip_address', (isset($ip->ip) ? $ip->ip : ''));
+            ?>
+            <tr<?php echo ($i++ % 2 == 1) ? ' class="odd_row"' : ''; ?>>
+                <td><?php echo (isset($ip->ip) ? $this->Html->safe($ip->ip) : ''); ?></td>
+                <td><?php echo (isset($ip->gateway) ? $this->Html->safe($ip->gateway) : 'N/A'); ?></td>
+                <td>
+                    <?php
+                    $this->Form->fieldText('reverse_dns', (isset($ip->reverse) ? $ip->reverse : ''), ['class' => 'form-control input-sm', 'placeholder' => 'e.g. mail.domain.com']);
+                    ?>
+                </td>
+                <td>
+                    <button class="btn btn-primary btn-sm pull-right">
+                        <i class="fas fa-save"></i> <?php $this->_('Vultr.tab_client_ips.update'); ?>
+                    </button>
+                </td>
+            </tr>
+            <?php
+                    $this->Form->end();
+                }
+            } else {
+            ?>
+            <tr>
+                <td colspan="4" class="text-center"><?php $this->_('Vultr.tab_client_ips.no_results'); ?></td>
+            </tr>
+            <?php
+            }
+            ?>
+        </tbody>
+    </table>
+</div>

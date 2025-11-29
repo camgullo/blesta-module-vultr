@@ -313,6 +313,7 @@ class Vultr extends Module
         $tabs = [
             'tabActions' => Language::_('Vultr.tab_actions', true),
             'tabStats' => Language::_('Vultr.tab_stats', true),
+            'tabIps' => Language::_('Vultr.tab_ips', true), // <--- New Admin Network Tab
             'tabSnapshots' => Language::_('Vultr.tab_snapshots', true),
             'tabBackups' => Language::_('Vultr.tab_backups', true)
         ];
@@ -324,7 +325,70 @@ class Vultr extends Module
 
         return $tabs;
     }
+      /**
+       * Admin Network/IPs tab.
+       *
+       * @param stdClass $package A stdClass object representing the current package
+       * @param stdClass $service A stdClass object representing the current service
+       * @param array $get Any GET parameters
+       * @param array $post Any POST parameters
+       * @param array $files Any FILES parameters
+       * @return string The string representing the contents of this tab
+       */
+      public function tabIps($package, $service, array $get = null, array $post = null, array $files = null)
+      {
+          $this->view = new View('tab_ips', 'default');
+          $this->view->base_uri = $this->base_uri;
 
+          // Load helpers
+          Loader::loadHelpers($this, ['Form', 'Html']);
+
+          // Get service fields and API
+          $row = $this->getModuleRow();
+          $api = $this->getApi($row->meta->api_key);
+          $service_fields = $this->serviceFieldsToObject($service->fields);
+
+          // Load Instance Command
+          $api->loadCommand('vultr_instances');
+          $vultr_api = new VultrInstances($api);
+
+          // Handle POST request (Update Reverse DNS)
+          if (!empty($post) && isset($post['ip_address']) && isset($post['reverse_dns'])) {
+              $params = [
+                  'instance-id' => $service_fields->vultr_subid,
+                  'ip' => $post['ip_address'],
+                  'reverse' => $post['reverse_dns']
+              ];
+
+              // Check if IPv6 or IPv4 based on input
+              if (filter_var($post['ip_address'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                   $this->parseResponse($vultr_api->reverseSetIpv6($params));
+              } else {
+                   $this->parseResponse($vultr_api->reverseSetIpv4($params));
+              }
+
+              // Set success message if no errors
+              if (!$this->Input->errors()) {
+                  $this->setMessage('success', Language::_('Vultr.!success.reverse_dns_updated', true));
+              }
+          }
+
+          // Fetch IPs
+          $params = ['instance-id' => $service_fields->vultr_subid];
+
+          $ipv4_resp = $this->parseResponse($vultr_api->listIpv4($params));
+          $ipv4s = $ipv4_resp->ipv4s ?? [];
+
+          $ipv6_resp = $this->parseResponse($vultr_api->listIpv6($params));
+          $ipv6s = $ipv6_resp->ipv6s ?? [];
+
+          $this->view->set('ipv4s', $ipv4s);
+          $this->view->set('ipv6s', $ipv6s);
+          $this->view->set('vars', (object)$post);
+
+          $this->view->setDefaultView('components' . DS . 'modules' . DS . 'vultr' . DS);
+          return $this->view->fetch();
+      }
     /**
      * Returns all tabs to display to a client when managing a service whose
      * package uses this module.
@@ -338,6 +402,7 @@ class Vultr extends Module
         $tabs = [
             'tabClientActions' => Language::_('Vultr.tab_client_actions', true),
             'tabClientStats' => Language::_('Vultr.tab_client_stats', true),
+            'tabClientIps' => Language::_('Vultr.tab_client_ips', true), // New Network Tab
             'tabClientSnapshots' => Language::_('Vultr.tab_client_snapshots', true),
             'tabClientBackups' => Language::_('Vultr.tab_client_backups', true),
         ];
@@ -762,9 +827,9 @@ class Vultr extends Module
                     unset($locations[$region_id]);
                 }
 
-                // The Vultr API only allows a maximum of 2 request per second, we need wait
-                // one 0.25 seconds before the next request.
-                usleep(250000);
+                // Vultr API v2 allows up to 30 req/s. We limit to 25 req/s.
+                // 1,000,000 microseconds / 25 = 40,000
+                usleep(40000);
             }
         }
 
@@ -1650,7 +1715,8 @@ class Vultr extends Module
             'vultr_subid',
             'vultr_template',
             'vultr_snapshots',
-            'vultr_enable_ipv6'
+            'vultr_enable_ipv6',
+            'vultr_password' // <--- Added this to allow password updates
         ];
 
         foreach ($fields as $field) {
@@ -1661,7 +1727,7 @@ class Vultr extends Module
 
         // Return all the service fields
         $fields = [];
-        $encrypted_fields = [];
+        $encrypted_fields = ['vultr_password']; // <--- Added this to ensure encryption
         foreach ($service_fields as $key => $value) {
             $fields[] = ['key' => $key, 'value' => $value, 'encrypted' => (in_array($key, $encrypted_fields) ? 1 : 0)];
         }
@@ -2191,32 +2257,6 @@ class Vultr extends Module
                         ];
                         $this->parseResponse($vultr_api->halt($params));
                         break;
-                    case 'reinstall':
-                        $params = [
-                            $instance_key => $service_fields->vultr_subid,
-                            'hostname' => $service_fields->vultr_hostname
-                        ];
-
-                        if ($package->meta->server_type !== 'server') {
-                            unset($params['hostname']);
-                        }
-
-                        $this->parseResponse($vultr_api->reinstall($params));
-                        break;
-                    case 'change_template':
-                        if ($package->meta->set_template == 'client') {
-                            $data = [
-                                'vultr_subid' => $service_fields->vultr_subid,
-                                'vultr_template' => ($post['template'] ?? null)
-                            ];
-                            $this->Services->edit($service->id, $data);
-
-                            if ($this->Services->errors()) {
-                                $vars = (object) $post;
-                                $this->Input->setErrors($this->Services->errors());
-                            }
-                        }
-                        break;
                     case 'enable_ipv6':
                         if ($package->meta->server_type == 'server') {
                             $params = [
@@ -2226,6 +2266,51 @@ class Vultr extends Module
                             $this->parseResponse($vultr_api->ipv6Enable($params));
 
                             $this->Services->edit($service->id, ['vultr_enable_ipv6' => 'enable']);
+                            if ($this->Services->errors()) {
+                                $vars = (object) $post;
+                                $this->Input->setErrors($this->Services->errors());
+                            }
+                        }
+                        break;
+                    case 'reinstall_or_change':
+                        // Get inputs
+                        $new_template = $post['template'] ?? null;
+                        $current_template = $service_fields->vultr_template ?? null;
+                        $can_change = ($package->meta->set_template ?? 'admin') == 'client';
+
+                        // Check if we are Reinstalling (Same Template OR Admin Restricted) or Changing (New Template)
+                        if (!$can_change || $new_template == $current_template) {
+                            // --- REINSTALL LOGIC ---
+                            $params = [
+                                $instance_key => $service_fields->vultr_subid,
+                                'hostname' => $service_fields->vultr_hostname
+                            ];
+
+                            if ($package->meta->server_type !== 'server') {
+                                unset($params['hostname']);
+                            }
+
+                            // Perform Reinstall
+                            $response = $this->parseResponse($vultr_api->reinstall($params));
+
+                            // Password Capture Logic
+                            if ($response) {
+                                $new_password = $response->instance->default_password ?? $response->bare_metal->default_password ?? null;
+                                if ($new_password) {
+                                    // Update local database without triggering API again
+                                    $this->Services->edit($service->id, ['vultr_password' => $new_password, 'use_module' => 'false']);
+                                    $this->setMessage('success', Language::_('Vultr.!success.reinstall_password', true, $new_password));
+                                }
+                            }
+                        } else {
+                            // --- CHANGE TEMPLATE LOGIC ---
+                            $data = [
+                                'vultr_subid' => $service_fields->vultr_subid,
+                                'vultr_template' => $new_template
+                            ];
+                            // This triggers editService which handles the API call for OS Change
+                            $this->Services->edit($service->id, $data);
+
                             if ($this->Services->errors()) {
                                 $vars = (object) $post;
                                 $this->Input->setErrors($this->Services->errors());
@@ -2317,6 +2402,13 @@ class Vultr extends Module
             $response = $this->parseResponse($vultr_api->get($params));
             $server_details = $response->bare_metal ?? (object) [];
         }
+
+        // --- NEW CODE: FALLBACK PASSWORD LOGIC ---
+        // If API does not return a password, use the one stored locally in Blesta
+        if (empty($server_details->default_password) && !empty($service_fields->vultr_password)) {
+            $server_details->default_password = $service_fields->vultr_password;
+        }
+        // -----------------------------------------
 
         $this->view->set('module_row', $row);
         $this->view->set('package', $package);
@@ -2851,5 +2943,72 @@ class Vultr extends Module
         }
 
         return $rules;
+    }
+
+    /**
+     * Client Network/IPs tab.
+     *
+     * @param stdClass $package A stdClass object representing the current package
+     * @param stdClass $service A stdClass object representing the current service
+     * @param array $get Any GET parameters
+     * @param array $post Any POST parameters
+     * @param array $files Any FILES parameters
+     * @return string The string representing the contents of this tab
+     */
+    public function tabClientIps($package, $service, array $get = null, array $post = null, array $files = null)
+    {
+        $this->view = new View('tab_client_ips', 'default');
+        $this->view->base_uri = $this->base_uri;
+
+        // Load helpers
+        Loader::loadHelpers($this, ['Form', 'Html']);
+
+        // Get service fields and API
+        $row = $this->getModuleRow();
+        $api = $this->getApi($row->meta->api_key);
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        // Load Instance Command
+        $api->loadCommand('vultr_instances');
+        $vultr_api = new VultrInstances($api);
+
+        // Handle POST request (Update Reverse DNS)
+        if (!empty($post) && isset($post['ip_address']) && isset($post['reverse_dns'])) {
+            $params = [
+                'instance-id' => $service_fields->vultr_subid,
+                'ip' => $post['ip_address'],
+                'reverse' => $post['reverse_dns']
+            ];
+
+            // Check if IPv6 or IPv4 based on input
+            if (filter_var($post['ip_address'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                 $this->parseResponse($vultr_api->reverseSetIpv6($params));
+            } else {
+                 $this->parseResponse($vultr_api->reverseSetIpv4($params));
+            }
+
+            // Set success message if no errors
+            if (!$this->Input->errors()) {
+                $this->setMessage('success', Language::_('Vultr.!success.reverse_dns_updated', true));
+            }
+        }
+
+        // Fetch IPs
+        $params = ['instance-id' => $service_fields->vultr_subid];
+
+        // Get IPv4s
+        $ipv4_resp = $this->parseResponse($vultr_api->listIpv4($params));
+        $ipv4s = $ipv4_resp->ipv4s ?? [];
+
+        // Get IPv6s
+        $ipv6_resp = $this->parseResponse($vultr_api->listIpv6($params));
+        $ipv6s = $ipv6_resp->ipv6s ?? [];
+
+        $this->view->set('ipv4s', $ipv4s);
+        $this->view->set('ipv6s', $ipv6s);
+        $this->view->set('vars', (object)$post);
+
+        $this->view->setDefaultView('components' . DS . 'modules' . DS . 'vultr' . DS);
+        return $this->view->fetch();
     }
 }

@@ -13,6 +13,7 @@ $lang['Vultr.tab_snapshots'] = 'Snapshots';
 $lang['Vultr.tab_backups'] = 'Backups';
 $lang['Vultr.tab_client_actions'] = 'Actions';
 $lang['Vultr.tab_client_stats'] = 'Statistics';
+$lang['Vultr.tab_client_ips'] = 'Network'; // New Tab Label
 $lang['Vultr.tab_client_snapshots'] = 'Snapshots';
 $lang['Vultr.tab_client_backups'] = 'Backups';
 
@@ -161,6 +162,17 @@ $lang['Vultr.tab_client_stats.info.gateway_v4'] = 'IPv4 Gateway';
 
 $lang['Vultr.tab_client_stats.app_information'] = 'Application Information';
 
+// Client Network (New)
+$lang['Vultr.tab_client_ips'] = 'Network';
+$lang['Vultr.tab_client_ips.heading_ips'] = 'IP Addresses';
+$lang['Vultr.tab_client_ips.ip_address'] = 'IP Address';
+$lang['Vultr.tab_client_ips.gateway'] = 'Gateway';
+$lang['Vultr.tab_client_ips.reverse_dns'] = 'Reverse DNS';
+$lang['Vultr.tab_client_ips.options'] = 'Options';
+$lang['Vultr.tab_client_ips.update'] = 'Update';
+$lang['Vultr.tab_client_ips.no_results'] = 'No IP addresses found.';
+$lang['Vultr.!success.reverse_dns_updated'] = 'The Reverse DNS entry has been updated successfully.';
+
 // Client snapshots
 $lang['Vultr.tab_client_snapshots.snapshots'] = 'Snapshots';
 $lang['Vultr.tab_client_snapshots.snapshot_id'] = 'Snapshot ID';
@@ -219,3 +231,17 @@ $lang['Vultr.!error.module_row.missing'] = 'An internal error occurred. The modu
 $lang['Vultr.!error.vultr_hostname.format'] = 'Please enter a valid hostname, e.g. domain.com.';
 $lang['Vultr.!error.vultr_location.valid'] = 'Please select a valid location.';
 $lang['Vultr.!error.vultr_template.valid'] = 'Please select a valid template.';
+
+// New Reinstall/Change Combined Strings
+$lang['Vultr.!success.reinstall_password'] = 'The server is now reinstalling. The new root password will be: %1$s';
+$lang['Vultr.tab_client_actions.action_reinstall_change'] = 'Reinstall / Change OS';
+$lang['Vultr.tab_client_actions.submit_reinstall_change'] = 'Reinstall / Change';
+$lang['Vultr.tab_client_actions.confirm_reinstall_change'] = 'Are you sure you want to reinstall or change the OS? ALL DATA WILL BE PERMANENTLY LOST.';
+$lang['Vultr.tab_ips'] = 'Network';
+
+// Dashboard / Service Info Labels Adjustments
+$lang['Vultr.service_info.server_id'] = 'Server ID';
+$lang['Vultr.service_info.root_password'] = 'Root Password';
+$lang['Vultr.service_info.ipv4_address'] = 'IPv4 Address';
+$lang['Vultr.service_info.ipv6_address'] = 'IPv6 Address';
+$lang['Vultr.service_info.name'] = 'Name';

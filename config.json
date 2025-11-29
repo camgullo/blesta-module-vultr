@@ -1,11 +1,15 @@
 {
-    "version": "2.0.1",
+    "version": "2.1.0",
     "name": "Vultr.name",
     "description": "Vultr.description",
     "authors": [
         {
             "name": "Phillips Data, Inc.",
             "url": "http://www.blesta.com"
+        },
+        {
+            "name": "Gullo's Hosting",
+            "url": "https://hosting.gullo.me"
         }
     ],
     "package": {
